@@ -329,7 +329,7 @@ add_action('wp_ajax_nopriv_obtener_subcategorias', 'obtener_subcategorias_ajax')
 
 //operaciones en conjunto de incersion de una empresa
 // Función para agregar una compañía y su dirección
-function add_company_and_address($company_data, $address_data) {
+function add_company_and_address($company_data, $address_data, $phones, $social_media) {
     global $wpdb;
 
     // Inicia una transacción
@@ -347,7 +347,6 @@ function add_company_and_address($company_data, $address_data) {
             array('%s', '%s', '%f', '%f')
         );
 
-        // Verificar si la inserción fue exitosa
         if (!$address_inserted) {
             throw new Exception('Error al insertar en la tabla wp_addresses');
         }
@@ -367,9 +366,43 @@ function add_company_and_address($company_data, $address_data) {
             array('%s', '%s', '%d', '%d', '%d')
         );
 
-        // Verificar si la inserción fue exitosa
         if (!$company_inserted) {
             throw new Exception('Error al insertar en la tabla wp_companies');
+        }
+
+        $company_id = $wpdb->insert_id; // Obtiene el ID de la compañía insertada
+
+        // Inserción de teléfonos
+        foreach ($phones as $phone) {
+            $phone_inserted = $wpdb->insert(
+                $wpdb->prefix . 'phones',
+                array(
+                    'company_id' => $company_id,
+                    'phone'      => $phone,
+                ),
+                array('%d', '%s')
+            );
+
+            if (!$phone_inserted) {
+                throw new Exception('Error al insertar en la tabla wp_phones');
+            }
+        }
+
+        // Inserción de redes sociales
+        foreach ($social_media as $social) {
+            $social_inserted = $wpdb->insert(
+                $wpdb->prefix . 'social_media',
+                array(
+                    'company_id' => $company_id,
+                    'name' => $name,
+                    'url'        => $social,
+                ),
+                array('%d', '%s')
+            );
+
+            if (!$social_inserted) {
+                throw new Exception('Error al insertar en la tabla wp_social_media');
+            }
         }
 
         // Confirmar la transacción
@@ -380,7 +413,6 @@ function add_company_and_address($company_data, $address_data) {
         wp_die('Error: ' . $e->getMessage()); // Muestra el mensaje de error
     }
 }
-
 
 
 

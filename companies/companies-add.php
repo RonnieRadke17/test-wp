@@ -3,9 +3,8 @@
 // Obtiene las categorías principales (estados)
 $categorias = obtener_categorias_principales();
 
-// Manejar la solicitud de inserción para la compañía y dirección
+// Manejar la solicitud de inserción para la compañía, dirección, teléfonos y redes sociales
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_company_and_address'])) {
-    // Recoger los datos enviados del formulario
     $company_data = array(
         'name'             => sanitize_text_field($_POST['company_name']),
         'description'      => sanitize_text_field($_POST['company_description']),
@@ -20,11 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_company_and_addre
         'longitude'   => floatval($_POST['longitude']),
     );
 
-    // Llama a la función para agregar la compañía y dirección
-    add_company_and_address($company_data, $address_data);
+    $phones = isset($_POST['phones']) ? array_map('sanitize_text_field', $_POST['phones']) : [];
+    $social_media = isset($_POST['social_media']) ? array_map('sanitize_text_field', $_POST['social_media']) : [];
 
-    // Redirige después de insertar
-    wp_redirect('?crud_action=list_companies'); // Cambia el parámetro según lo necesites
+    add_company_and_address($company_data, $address_data, $phones, $social_media);
+
+    wp_redirect('?crud_action=list_companies');
     exit;
 }
 ?>
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_company_and_addre
         <button type="button" class="next-step">Siguiente</button>
     </div>
 
-    <!-- Paso 2: Dirección (Address) -->
+    <!-- Paso 2: Dirección y Contacto -->
     <div id="step-2" class="form-step" style="display:none;">
         <h3>Dirección</h3>
         <div>
@@ -106,9 +106,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_company_and_addre
             <p><strong>Longitud:</strong> <span id="displayLng"></span></p>
         </div>
 
+        <h3>Teléfonos</h3>
+        <div id="phone-container">
+            <input type="text" name="phones[]" placeholder="Número de teléfono" />
+        </div>
+        <button type="button" id="add-phone">Agregar Teléfono</button>
+
+        <h3>Redes Sociales</h3>
+        <div id="social-container">
+            <input type="text" name="social_media[]" placeholder="Red social (URL)" />
+        </div>
+        <button type="button" id="add-social">Agregar Red Social</button>
+
         <button type="button" class="prev-step">Anterior</button>
         <button type="submit" name="add_company_and_address">Enviar</button>
-
     </div>
 </form>
 
@@ -137,6 +148,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_company_and_addre
                     prevStep.style.display = "block";
                 }
             });
+        });
+
+        // Agregar más números de teléfono
+        document.getElementById('add-phone').addEventListener('click', function () {
+            const container = document.getElementById('phone-container');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'phones[]';
+            input.placeholder = 'Número de teléfono';
+            container.appendChild(input);
+        });
+
+        // Agregar más redes sociales
+        document.getElementById('add-social').addEventListener('click', function () {
+            const container = document.getElementById('social-container');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'social_media[]';
+            input.placeholder = 'Red social (URL)';
+            container.appendChild(input);
         });
     });
 
