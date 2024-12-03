@@ -1,7 +1,4 @@
 <?php
-// Add this to functions.php
-
-// Create table on theme activation
 
 function get_all_days() {
     global $wpdb;
@@ -70,13 +67,6 @@ function delete_day($id) {
     return $wpdb->delete($table_name, ['id' => intval($id)]);
 }
 
-
-//
-//
-//
-//
-//
-//
 //crud de schendule
 // Función para agregar un nuevo horario
 function add_schedule($day_id, $start_time, $end_time) {
@@ -246,8 +236,6 @@ function add_companies($name) {
     return $wpdb->insert_id; // Devuelve el ID del registro insertado
 }
 
-
-
 function handle_companies_crud_routes($template) {
     if (isset($_GET['crud_action'])) {
         switch ($_GET['crud_action']) {
@@ -261,26 +249,6 @@ function handle_companies_crud_routes($template) {
     }
     return $template;
 }
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////Categorias
-/* function obtener_categorias_estados_datos() {
-    // Obtener todas las categorías principales
-    $args = array(
-        'taxonomy'   => 'category',
-        'parent'     => 0, // Solo categorías principales
-        'hide_empty' => false, // Mostrar categorías vacías
-    );
-
-    $categorias = get_terms($args);
-
-    if (!empty($categorias) && !is_wp_error($categorias)) {
-        return $categorias; // Devuelve las categorías como datos
-    }
-
-    return []; // Devuelve un array vacío si no hay categorías
-} */
 
 
 // Función para obtener categorías principales (estados)
@@ -328,9 +296,50 @@ add_action('wp_ajax_nopriv_obtener_subcategorias', 'obtener_subcategorias_ajax')
 
 
 //operaciones en conjunto de incersion de una empresa
-// Función para agregar una compañía y su dirección
-function add_company_and_address($company_data, $address_data, $phones, $social_media) {
+
+function add_company($company_data, $address_data, $phones, $social_media) {
     global $wpdb;
+
+    // Array para almacenar errores
+    $errors = [];
+
+    // Validaciones para $company_data
+    if (empty($company_data['name']) || !preg_match('/^[a-zA-Z0-9\s]+$/', $company_data['name'])) {
+        $errors[] = 'El nombre de la empresa es inválido o está vacío.';
+    }
+    if (empty($company_data['description']) || strlen($company_data['description']) > 255) {// expresion regular falta
+        $errors[] = 'La descripción de la empresa debe tener menos de 255 caracteres.';
+    }
+    if (!empty($company_data['category_id']) || !is_numeric($company_data['category_id']) || !is_numeric($company_data['subcategory_id']) || empty($company_data['subcategory_id'])) {
+        $errors[] = 'La categoría o subcategoría de la empresa no son válidas.';
+    }
+
+    // Validaciones para $address_data
+    if (empty($address_data['name']) || !preg_match('/^[a-zA-Z0-9\s]+$/', $address_data['name']) || empty($address_data['latitude']) || !is_numeric($address_data['latitude']) || !is_numeric($address_data['longitude']) || empty($address_data['longitude'])) {
+        $errors[] = 'Selecciona una dirección';
+    }
+    
+    // Validaciones para $phones
+    foreach ($phones as $phone) {
+        if (!preg_match('/^\+?[0-9\s\-]+$/', $phone)) {
+            $errors[] = "El número de teléfono '{$phone}' es inválido.";
+        }
+    }
+
+    // Validaciones para $social_media
+    foreach ($social_media as $social) {
+        if (empty($social['name']) || !preg_match('/^[a-zA-Z\s]+$/', $social['name'])) {
+            $errors[] = "El nombre de la red social '{$social['name']}' es inválido.";
+        }
+        if (!filter_var($social['url'], FILTER_VALIDATE_URL)) {
+            $errors[] = "El URL de la red social '{$social['url']}' es inválido.";
+        }
+    }
+
+    // Si hay errores, devolverlos
+    if (!empty($errors)) {
+        return $errors;
+    }
 
     // Inicia una transacción
     $wpdb->query('START TRANSACTION');
@@ -351,7 +360,7 @@ function add_company_and_address($company_data, $address_data, $phones, $social_
             throw new Exception('Error al insertar en la tabla wp_addresses');
         }
 
-        $address_id = $wpdb->insert_id; // Obtiene el ID de la dirección insertada
+        $address_id = $wpdb->insert_id;
 
         // Inserción en wp_companies
         $company_inserted = $wpdb->insert(
@@ -370,7 +379,7 @@ function add_company_and_address($company_data, $address_data, $phones, $social_
             throw new Exception('Error al insertar en la tabla wp_companies');
         }
 
-        $company_id = $wpdb->insert_id; // Obtiene el ID de la compañía insertada
+        $company_id = $wpdb->insert_id;
 
         // Inserción de teléfonos
         foreach ($phones as $phone) {
@@ -394,10 +403,10 @@ function add_company_and_address($company_data, $address_data, $phones, $social_
                 $wpdb->prefix . 'social_media',
                 array(
                     'company_id' => $company_id,
-                    'name' => $name,
-                    'url'        => $social,
+                    'name'       => $social['name'],
+                    'url'        => $social['url'],
                 ),
-                array('%d', '%s')
+                array('%d', '%s', '%s')
             );
 
             if (!$social_inserted) {
@@ -410,23 +419,76 @@ function add_company_and_address($company_data, $address_data, $phones, $social_
     } catch (Exception $e) {
         // Si ocurre un error, revertir la transacción
         $wpdb->query('ROLLBACK');
-        wp_die('Error: ' . $e->getMessage()); // Muestra el mensaje de error
+        $errors[] = $e->getMessage();
+        return $errors; // Retornar errores
     }
+
+    // Si todo fue exitoso, retornar a index
+    /* return null; */
+    wp_redirect('?crud_action=list_companies');
+        exit;
 }
 
+function ia_Test(){
+        
+
+    // Define tu clave de API de OpenAI
+    $apiKey = "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"; // Reemplaza con tu clave de API
+
+    // Define el mensaje que deseas enviar a ChatGPT
+    $message = "Hola, ¿cómo estás?";
+
+    // Configuración de la solicitud
+    $url = "https://api.openai.com/v1/chat/completions";
+    $data = [
+        "model" => "gpt-4", // Cambia a "gpt-3.5-turbo" si usas ese modelo
+        "messages" => [
+            ["role" => "system", "content" => "Eres un asistente útil."],
+            ["role" => "user", "content" => $message]
+        ],
+        "max_tokens" => 200,
+        "temperature" => 0.7
+    ];
+
+    $headers = [
+        "Authorization: Bearer $apiKey",
+        "Content-Type: application/json"
+    ];
+
+    // Llamada a la API usando cURL
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+    $response = curl_exec($ch);
+
+    // Verifica si ocurrió un error
+    if (curl_errno($ch)) {
+        echo "Error: " . curl_error($ch);
+    } else {
+        $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($httpStatus == 200) {
+            $responseData = json_decode($response, true);
+            // Muestra la respuesta de ChatGPT
+            if (isset($responseData['choices'][0]['message']['content'])) {
+                echo "ChatGPT dice: " . $responseData['choices'][0]['message']['content'];
+            } else {
+                echo "No se pudo obtener una respuesta válida.";
+            }
+        } else {
+            echo "Error: Código de estado HTTP " . $httpStatus . "\n";
+            echo "Detalles: " . $response;
+        }
+    }
+
+    // Cierra cURL
+    curl_close($ch);
 
 
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
 
@@ -437,10 +499,11 @@ add_filter('template_include', 'handle_schedules_crud_routes');
 
 add_filter('template_include', 'handle_keywords_crud_routes');
 
-
 add_filter('template_include', 'handle_days_crud_routes');
 
-//add_filter('template_include', 'handle_days_crud_routes');
-
 add_filter('template_include', 'handle_days_view');
+
+
+
+
 

@@ -13,7 +13,7 @@
 ">Dias bien</a>
 
 
-<?php get_footer(); ?>
+
 
 </body>
 </html>
