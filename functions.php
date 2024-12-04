@@ -12,24 +12,67 @@ function add_day($name) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'days';
 
-    $wpdb->insert($table_name, [
-        'name' => sanitize_text_field($name),
-    ]);
+    // Sanitización del campo
+    $name = sanitize_text_field($name);
+
+    // Validación de longitud
+    if (strlen($name) < 5 || strlen($name) > 45) {
+        return new WP_Error('invalid_name_length', 'El nombre debe tener entre 5 y 45 caracteres.');
+    }
+
+    // Intentar insertar el nuevo día
+    $result = $wpdb->insert($table_name, ['name' => $name]);
+
+    // Manejar errores de la base de datos
+    if ($result === false) {
+        $last_error = $wpdb->last_error;
+        if (strpos($last_error, 'Duplicate entry') !== false) {
+            return new WP_Error('duplicate_entry', 'El nombre ingresado ya existe. Por favor, elige otro.');
+        }
+        return new WP_Error('db_insert_error', 'No se pudo agregar el día. Inténtalo nuevamente.');
+    }
 
     return $wpdb->insert_id; // Devuelve el ID del registro insertado
 }
 
 
 // Función para actualizar un día existente
+// Función para actualizar un día existente con validaciones
 function update_day($id, $name) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'days';
 
-    return $wpdb->update(
+    // Validar y sanitizar los datos
+    $name = sanitize_text_field($name);
+    $id = intval($id);
+
+    // Validación de longitud
+    if (strlen($name) < 5 || strlen($name) > 45) {
+        return new WP_Error('invalid_name_length', 'El nombre debe tener entre 5 y 45 caracteres.');
+    }
+
+    // Comprobar si el nombre ya existe en otro registro
+    $existing_day = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM $table_name WHERE name = %s AND id != %d",
+        $name, $id
+    ));
+
+    if ($existing_day) {
+        return new WP_Error('duplicate_entry', 'El nombre ingresado ya existe. Por favor, elige otro.');
+    }
+
+    // Intentar la actualización
+    $result = $wpdb->update(
         $table_name,
-        ['name' => sanitize_text_field($name)], // Nuevos valores
-        ['id' => intval($id)] // Condición
+        ['name' => $name], // Nuevos valores
+        ['id' => $id] // Condición
     );
+
+    if ($result === false) {
+        return new WP_Error('db_update_error', 'No se pudo actualizar el día. Inténtalo nuevamente.');
+    }
+
+    return $result;
 }
 
 // Función para obtener un día por ID
@@ -38,6 +81,14 @@ function get_day_by_id($id) {
     $table_name = $wpdb->prefix . 'days';
 
     return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id), ARRAY_A);
+}
+
+// Función para eliminar un día por ID
+function delete_day($id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'days';
+
+    return $wpdb->delete($table_name, ['id' => intval($id)]);
 }
 
 function handle_days_crud_routes($template) {
@@ -59,28 +110,65 @@ function handle_days_view($template) {//index
     return $template;
 }
 
-// Función para eliminar un día por ID
-function delete_day($id) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'days';
 
-    return $wpdb->delete($table_name, ['id' => intval($id)]);
-}
+
+
+
+
+
+
+
+
 
 //crud de schendule
 // Función para agregar un nuevo horario
+// Función para agregar un nuevo horario con validaciones
 function add_schedule($day_id, $start_time, $end_time) {
     global $wpdb;
-    $table_name = $wpdb->prefix . 'schedules'; // Nombre de la tabla
+    $table_name = $wpdb->prefix . 'schedules';
 
-    $wpdb->insert($table_name, [
-        'day_id' => intval($day_id), // ID del día
-        'start_time' => sanitize_text_field($start_time), // Hora de inicio
-        'end_time' => sanitize_text_field($end_time), // Hora de fin
+    // Validar y sanitizar los datos
+    $day_id = intval($day_id);
+    $start_time = sanitize_text_field($start_time);
+    $end_time = sanitize_text_field($end_time);
+
+    // Verificar que el día existe
+    $day_exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}days WHERE id = %d",
+        $day_id
+    ));
+    if (!$day_exists) {
+        return new WP_Error('invalid_day', 'El día seleccionado no existe.');
+    }
+
+    // Validar que la hora de inicio sea menor que la hora de fin
+    if (strtotime($start_time) >= strtotime($end_time)) {
+        return new WP_Error('invalid_time_range', 'La hora de inicio debe ser menor que la hora de fin.');
+    }
+
+    // Comprobar duplicados
+    $schedule_exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $table_name WHERE day_id = %d AND start_time = %s AND end_time = %s",
+        $day_id, $start_time, $end_time
+    ));
+    if ($schedule_exists) {
+        return new WP_Error('duplicate_schedule', 'Ya existe un horario con estos valores.');
+    }
+
+    // Insertar el nuevo horario
+    $result = $wpdb->insert($table_name, [
+        'day_id' => $day_id,
+        'start_time' => $start_time,
+        'end_time' => $end_time,
     ]);
+
+    if ($result === false) {
+        return new WP_Error('db_insert_error', 'No se pudo agregar el horario. Inténtalo nuevamente.');
+    }
 
     return $wpdb->insert_id; // Devuelve el ID del registro insertado
 }
+
 
 // Función para obtener todos los horarios con el nombre del día
 function get_all_schedules() {
@@ -101,6 +189,78 @@ function get_all_schedules() {
     ", ARRAY_A);
 }
 
+// Función para actualizar un horario con validaciones
+function update_schedule($id, $day_id, $start_time, $end_time) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'schedules';
+
+    // Validar y sanitizar los datos
+    $id = intval($id);
+    $day_id = intval($day_id);
+    $start_time = sanitize_text_field($start_time);
+    $end_time = sanitize_text_field($end_time);
+
+    // Validar que el día existe
+    $day_exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}days WHERE id = %d",
+        $day_id
+    ));
+    if (!$day_exists) {
+        return new WP_Error('invalid_day', 'El día seleccionado no existe.');
+    }
+
+    // Validar que la hora de inicio sea menor que la hora de fin
+    if (strtotime($start_time) >= strtotime($end_time)) {
+        return new WP_Error('invalid_time_range', 'La hora de inicio debe ser menor que la hora de fin.');
+    }
+
+    // Comprobar duplicados
+    $schedule_exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $table_name WHERE day_id = %d AND start_time = %s AND end_time = %s AND id != %d",
+        $day_id, $start_time, $end_time, $id
+    ));
+    if ($schedule_exists) {
+        return new WP_Error('duplicate_schedule', 'Ya existe un horario con estos valores.');
+    }
+
+    // Intentar la actualización
+    $result = $wpdb->update(
+        $table_name,
+        [
+            'day_id' => $day_id,
+            'start_time' => $start_time,
+            'end_time' => $end_time,
+        ],
+        ['id' => $id] // Condición
+    );
+
+    if ($result === false) {
+        return new WP_Error('db_update_error', 'No se pudo actualizar el horario. Inténtalo nuevamente.');
+    }
+
+    return $result;
+}
+
+// Función para obtener un horario por ID
+function get_schedule_by_id($id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'schedules';
+
+    return $wpdb->get_row(
+        $wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id),
+        ARRAY_A
+    );
+}
+
+// Función para eliminar un horario de la base de datos
+function delete_schedule($id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'schedules';  // Nombre de la tabla 'schedule'
+
+    // Usamos el método delete() de $wpdb para eliminar el registro con el ID proporcionado
+    return $wpdb->delete($table_name, ['id' => intval($id)]);  // Retorna true si la eliminación fue exitosa
+}
+
 function handle_schedules_crud_routes($template) {
     if (isset($_GET['crud_action'])) {
         switch ($_GET['crud_action']) {
@@ -118,42 +278,18 @@ add_filter('template_include', 'handle_schedules_crud_routes');
 
 
 
-// Función para actualizar un horario
-function update_schedule($id, $day_id, $start_time, $end_time) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'schedules';
-
-    return $wpdb->update(
-        $table_name,
-        [
-            'day_id' => intval($day_id),
-            'start_time' => sanitize_text_field($start_time),
-            'end_time' => sanitize_text_field($end_time)
-        ],
-        ['id' => intval($id)] // Condición: Actualizar por ID
-    );
-}
-
-// Función para obtener un horario por ID
-function get_schedule_by_id($id) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'schedules';
-
-    return $wpdb->get_row(
-        $wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id),
-        ARRAY_A
-    );
-}
 
 
-// Función para eliminar un horario de la base de datos
-function delete_schedule($id) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'schedules';  // Nombre de la tabla 'schedule'
 
-    // Usamos el método delete() de $wpdb para eliminar el registro con el ID proporcionado
-    return $wpdb->delete($table_name, ['id' => intval($id)]);  // Retorna true si la eliminación fue exitosa
-}
+
+
+
+
+
+
+
+
+
 
 //keywords
 
@@ -221,6 +357,147 @@ function handle_keywords_crud_routes($template) {
     return $template;
 }
 
+
+
+// social names
+
+// Función para obtener todos los nombres sociales
+function get_all_social_names() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'social_names';
+
+    return $wpdb->get_results("SELECT * FROM $table_name", ARRAY_A);
+}
+
+// Función para agregar un nuevo nombre social
+function add_social_name($name) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'social_names';
+
+    // Sanitización del campo
+    $name = sanitize_text_field($name);
+
+    // Validación de longitud
+    if (strlen($name) < 5 || strlen($name) > 45) {
+        return new WP_Error('invalid_name_length', 'El nombre debe tener entre 5 y 45 caracteres.');
+    }
+
+    // Intentar insertar el nuevo nombre
+    $result = $wpdb->insert($table_name, ['name' => $name]);
+
+    // Manejar errores de la base de datos
+    if ($result === false) {
+        $last_error = $wpdb->last_error;
+        if (strpos($last_error, 'Duplicate entry') !== false) {
+            return new WP_Error('duplicate_entry', 'El nombre ingresado ya existe. Por favor, elige otro.');
+        }
+        return new WP_Error('db_insert_error', 'No se pudo agregar el nombre social. Inténtalo nuevamente.');
+    }
+
+    return $wpdb->insert_id; // Devuelve el ID del registro insertado
+}
+
+// Función para actualizar un nombre social existente con validaciones
+function update_social_name($id, $name) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'social_names';
+
+    // Validar y sanitizar los datos
+    $name = sanitize_text_field($name);
+    $id = intval($id);
+
+    // Validación de longitud
+    if (strlen($name) < 5 || strlen($name) > 45) {
+        return new WP_Error('invalid_name_length', 'El nombre debe tener entre 5 y 45 caracteres.');
+    }
+
+    // Comprobar si el nombre ya existe en otro registro
+    $existing_name = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM $table_name WHERE name = %s AND id != %d",
+        $name, $id
+    ));
+
+    if ($existing_name) {
+        return new WP_Error('duplicate_entry', 'El nombre ingresado ya existe. Por favor, elige otro.');
+    }
+
+    // Intentar la actualización
+    $result = $wpdb->update(
+        $table_name,
+        ['name' => $name], // Nuevos valores
+        ['id' => $id] // Condición
+    );
+
+    if ($result === false) {
+        return new WP_Error('db_update_error', 'No se pudo actualizar el nombre social. Inténtalo nuevamente.');
+    }
+
+    return $result;
+}
+
+// Función para obtener un nombre social por ID
+function get_social_name_by_id($id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'social_names';
+
+    return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id), ARRAY_A);
+}
+
+// Función para eliminar un nombre social por ID
+function delete_social_name($id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'social_names';
+
+    // Eliminar el registro
+    return $wpdb->delete($table_name, ['id' => intval($id)]);
+}
+
+// Función para manejar rutas específicas del CRUD de nombres sociales
+function handle_social_names_crud_routes($template) {
+    if (isset($_GET['crud_action'])) {
+        switch ($_GET['crud_action']) {
+            case 'add_social_name':
+                return get_template_directory() . '/social-names/social-names-add.php';
+            case 'edit_social_name':
+                return get_template_directory() . '/social-names/social-names-edit.php';
+            case 'list_social_name':
+                return get_template_directory() . '/social-names/social-names-list.php';
+        }
+    }
+    return $template;
+}
+
+add_filter('template_include', 'handle_social_names_crud_routes');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //companies
 // Función para agregar un nuevo día
 function add_companies($name) {
@@ -249,6 +526,15 @@ function handle_companies_crud_routes($template) {
     }
     return $template;
 }
+
+
+
+
+
+
+
+
+
 
 
 // Función para obtener categorías principales (estados)
@@ -293,6 +579,33 @@ function obtener_subcategorias_ajax() {
 }
 add_action('wp_ajax_obtener_subcategorias', 'obtener_subcategorias_ajax');
 add_action('wp_ajax_nopriv_obtener_subcategorias', 'obtener_subcategorias_ajax');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 //operaciones en conjunto de incersion de una empresa
@@ -433,7 +746,7 @@ function ia_Test(){
         
 
     // Define tu clave de API de OpenAI
-    $apiKey = "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"; // Reemplaza con tu clave de API
+    $apiKey = "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"; // Reemplaza con tu clave de API
 
     // Define el mensaje que deseas enviar a ChatGPT
     $message = "Hola, ¿cómo estás?";
@@ -441,7 +754,7 @@ function ia_Test(){
     // Configuración de la solicitud
     $url = "https://api.openai.com/v1/chat/completions";
     $data = [
-        "model" => "gpt-4", // Cambia a "gpt-3.5-turbo" si usas ese modelo
+        "model" => "gpt-3.5-turbo", // Cambia a "gpt-3.5-turbo" si usas ese modelo
         "messages" => [
             ["role" => "system", "content" => "Eres un asistente útil."],
             ["role" => "user", "content" => $message]
@@ -474,6 +787,10 @@ function ia_Test(){
             $responseData = json_decode($response, true);
             // Muestra la respuesta de ChatGPT
             if (isset($responseData['choices'][0]['message']['content'])) {
+                
+
+                return $responseData['choices'][0]['message']['content'];
+                
                 echo "ChatGPT dice: " . $responseData['choices'][0]['message']['content'];
             } else {
                 echo "No se pudo obtener una respuesta válida.";
@@ -490,6 +807,20 @@ function ia_Test(){
 
 }
 
+function handle_ia_routes($template) {
+    if (isset($_GET['crud_action'])) {
+        switch ($_GET['crud_action']) {
+            case 'ia-test':
+                return get_template_directory() . '/keywords/api-test.php'; // Lista de horarios
+            
+        }
+    }
+    return $template;
+}
+add_filter('template_include', 'handle_ia_routes');
+
+
+
 
 
 
@@ -502,8 +833,3 @@ add_filter('template_include', 'handle_keywords_crud_routes');
 add_filter('template_include', 'handle_days_crud_routes');
 
 add_filter('template_include', 'handle_days_view');
-
-
-
-
-
