@@ -1,9 +1,10 @@
 <?php
 
+
     // Obtiene las categorías principales (estados)
     $categorias = obtener_categorias_principales();
 
-    // Manejar la solicitud de inserción para la compañía, dirección, teléfonos y redes sociales
+    
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_company'])) {
         // Datos de la compañía
         $company_data = array(
@@ -16,7 +17,6 @@
         // Datos de la dirección
         $address_data = array(
             'name'        => sanitize_text_field($_POST['placeName']),
-            'description' => sanitize_text_field($_POST['placeDescription']),
             'latitude'    => floatval($_POST['latitude']),
             'longitude'   => floatval($_POST['longitude']),
         );
@@ -38,11 +38,35 @@
             }
         }
     
-        // Llamada a la función add_company
-        add_company($company_data, $address_data, $phones, $social_media);
+        // Horarios
+        $schedules = isset($_POST['schedules']) ? array_map('sanitize_text_field', $_POST['schedules']) : [];
     
-        $errors = add_company($company_data, $address_data, $phones, $social_media);
-
+        // Imágenes
+        $images = [];
+        if (isset($_FILES['images']) && is_array($_FILES['images']['name'])) {
+            // Iterar sobre las imágenes subidas
+            foreach ($_FILES['images']['name'] as $index => $name) {
+                // Validar archivo subido
+                $tmp_name = $_FILES['images']['tmp_name'][$index];
+                $size = $_FILES['images']['size'][$index];
+                $error = $_FILES['images']['error'][$index];
+                $type = $_FILES['images']['type'][$index];
+    
+                // Procesar archivo solo si no hay errores
+                if ($error === UPLOAD_ERR_OK) {
+                    $images[] = [
+                        'name' => sanitize_file_name($name),
+                        'tmp_name' => $tmp_name,
+                        'size' => $size,
+                        'type' => $type,
+                    ];
+                }
+            }
+        }
+    
+        // Llamada a la función add_company
+        $errors = add_company($company_data, $address_data, $phones, $social_media, $schedules, $images);
+    
         if ($errors) {
             foreach ($errors as $error) {
                 echo '<p style="color: red;">' . esc_html($error) . '</p>';
@@ -50,9 +74,9 @@
         } else {
             echo '<p style="color: green;">Empresa agregada exitosamente.</p>';
         }
-
-        // Redirección tras la inserción
     }
+    
+    
 
 ?>
 
@@ -79,7 +103,7 @@
 </head>
 <body>
 
-<form id="company-form" method="POST">
+<form id="company-form" method="POST" enctype="multipart/form-data">
     <!-- Paso 1: Información de la Compañía -->
     <div id="step-1" class="form-step">
         <h3>Información de la Compañía</h3>
@@ -151,16 +175,121 @@
         <h3>Redes Sociales</h3>
         <div id="social-container">
             <div class="social-group">
-                <input type="text" name="social_media_names[]" placeholder="Nombre de la red social" />
+                <!-- Selector dinámico para los nombres de redes sociales -->
+                <select name="social_media_names[]">
+                    <option value="">Selecciona una red social</option>
+                    <?php
+                    global $wpdb;
+                    $table_name = $wpdb->prefix . 'social_names';
+                    $social_names = $wpdb->get_results("SELECT id, name FROM $table_name", ARRAY_A);
+
+                    foreach ($social_names as $social_name) {
+                        echo '<option value="' . esc_attr($social_name['id']) . '">' . esc_html($social_name['name']) . '</option>';
+                    }
+                    ?>
+                </select>
                 <input type="text" name="social_media_urls[]" placeholder="URL de la red social" />
             </div>
         </div>
         <button type="button" id="add-social">Agregar Red Social</button><br><br>
 
         <button type="button" class="prev-step">Anterior</button>
-        <button type="submit" name="add_company">Enviar</button>
+        <button type="button" class="next-step">Siguiente</button>
     </div>
+
+    <!-- Paso 5: Seleccionar Horario -->
+    <div id="step-5" class="form-step" style="display:none;">
+        <h3>Seleccionar Horarios</h3>
+        <div id="horarios-container">
+            <div class="horario-group">
+                <label for="horario">Horario disponible:</label><br>
+                <select name="schedules[]" class="horario-select" required>
+                    <option value="">-- Selecciona un horario --</option>
+                    <?php if (!empty($horarios)) : ?>
+                        <?php foreach ($horarios as $horario) : ?>
+                            <option value="<?php echo esc_attr($horario['horario_id']); ?>">
+                                <?php echo esc_html($horario['dia'] . ': ' . $horario['start_time'] . ' - ' . $horario['end_time']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php else : ?>
+                        <option value="">No hay horarios disponibles</option>
+                    <?php endif; ?>
+                </select>
+                <button type="button" class="remove-horario">Eliminar</button>
+            </div>
+        </div>
+        <button type="button" id="add-horario">Agregar Horario</button><br><br>
+        <button type="button" class="prev-step">Anterior</button>
+        <button type="button" class="next-step">Siguiente</button>
+    </div>
+
+    <!-- Paso 6: multimedia -->
+    <div id="step-6" class="form-step" style="display:none;">
+        <h3>Imágenes</h3>
+        <div id="images-container">
+            <label for="imagen">Seleccionar imágenes:</label>
+            <!-- Atributo "multiple" permite seleccionar varias imágenes -->
+            <input type="file" id="imagen" name="images[]" accept="image/jpeg, image/png, image/gif" multiple required>
+            <small>Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 2MB. Dimensiones máximas: 1920x1080.</small>
+        </div>
+        <button type="button" class="prev-step">Anterior</button>
+        <button type="submit" name="add_company">Enviar</button>
+
+    </div>
+
+
 </form>
+
+<!-- horarios -->
+ <script>
+    document.addEventListener("DOMContentLoaded", function () {
+    // Botón para agregar horarios
+    const addHorarioButton = document.getElementById('add-horario');
+    const horariosContainer = document.getElementById('horarios-container');
+
+    addHorarioButton.addEventListener('click', function () {
+        // Crear un nuevo contenedor de horario
+        const horarioGroup = document.createElement('div');
+        horarioGroup.classList.add('horario-group');
+
+        // Contenido del nuevo horario
+        horarioGroup.innerHTML = `
+            
+            <select name="schedules[]" class="horario-select" required>
+                <option value="">-- Selecciona un horario --</option>
+                <?php if (!empty($horarios)) : ?>
+                    <?php foreach ($horarios as $horario) : ?>
+                        <option value="<?php echo esc_attr($horario['horario_id']); ?>">
+                            <?php echo esc_html($horario['dia'] . ': ' . $horario['start_time'] . ' - ' . $horario['end_time']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                <?php else : ?>
+                    <option value="">No hay horarios disponibles</option>
+                <?php endif; ?>
+            </select>
+            <button type="button" class="remove-horario">Eliminar</button>
+        `;
+
+        // Agregar el nuevo grupo al contenedor
+        horariosContainer.appendChild(horarioGroup);
+
+        // Manejar la eliminación de este horario
+        const removeButton = horarioGroup.querySelector('.remove-horario');
+        removeButton.addEventListener('click', function () {
+            horarioGroup.remove();
+        });
+    });
+
+    // Manejar la eliminación de los horarios iniciales
+    horariosContainer.addEventListener('click', function (e) {
+        if (e.target && e.target.classList.contains('remove-horario')) {
+            e.target.parentElement.remove();
+        }
+    });
+});
+
+ </script>
+
 
 <!-- script de pasos dinamicos  -->
 <script>
@@ -197,26 +326,34 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
     // Agregar más números de teléfono
-    document.getElementById('add-phone').addEventListener('click', function () {
-        const container = document.getElementById('phone-container');
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.name = 'phones[]';
-        input.placeholder = 'Número de teléfono';
-        container.appendChild(input);
-    });
-
-    // Agregar más redes sociales
-    document.getElementById('add-social').addEventListener('click', function () {
-        const container = document.getElementById('social-container');
-        const div = document.createElement('div');
-        div.className = 'social-group';
-        div.innerHTML = `
-            <input type="text" name="social_media_names[]" placeholder="Nombre de la red social" />
-            <input type="text" name="social_media_urls[]" placeholder="URL de la red social" />
-        `;
-        container.appendChild(div);
+        document.getElementById('add-phone').addEventListener('click', function () {
+            const container = document.getElementById('phone-container');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'phones[]';
+            input.placeholder = 'Número de teléfono';
+            container.appendChild(input);
         });
+
+        
+        document.getElementById('add-social').addEventListener('click', function() {
+            const container = document.getElementById('social-container');
+            const newGroup = document.createElement('div');
+            newGroup.classList.add('social-group');
+
+            newGroup.innerHTML = `
+                <select name="social_media_names[]">
+                    <option value="">Selecciona una red social</option>
+                    <?php foreach ($social_names as $social_name): ?>
+                        <option value="<?php echo esc_attr($social_name['id']); ?>"><?php echo esc_html($social_name['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <input type="text" name="social_media_urls[]" placeholder="URL de la red social" />
+            `;
+
+            container.appendChild(newGroup);
+        });
+
     });
 
 </script>

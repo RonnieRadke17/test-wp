@@ -610,7 +610,7 @@ add_action('wp_ajax_nopriv_obtener_subcategorias', 'obtener_subcategorias_ajax')
 
 //operaciones en conjunto de incersion de una empresa
 
-function add_company($company_data, $address_data, $phones, $social_media) {
+function add_company($company_data, $address_data, $phones, $social_media,$schedules,$images) {
     global $wpdb;
 
     // Array para almacenar errores
@@ -623,7 +623,7 @@ function add_company($company_data, $address_data, $phones, $social_media) {
     if (empty($company_data['description']) || strlen($company_data['description']) > 255) {// expresion regular falta
         $errors[] = 'La descripción de la empresa debe tener menos de 255 caracteres.';
     }
-    if (!empty($company_data['category_id']) || !is_numeric($company_data['category_id']) || !is_numeric($company_data['subcategory_id']) || empty($company_data['subcategory_id'])) {
+    /* if (!empty($company_data['category_id']) || !is_numeric($company_data['category_id']) || !is_numeric($company_data['subcategory_id']) || empty($company_data['subcategory_id'])) {
         $errors[] = 'La categoría o subcategoría de la empresa no son válidas.';
     }
 
@@ -631,7 +631,7 @@ function add_company($company_data, $address_data, $phones, $social_media) {
     if (empty($address_data['name']) || !preg_match('/^[a-zA-Z0-9\s]+$/', $address_data['name']) || empty($address_data['latitude']) || !is_numeric($address_data['latitude']) || !is_numeric($address_data['longitude']) || empty($address_data['longitude'])) {
         $errors[] = 'Selecciona una dirección';
     }
-    
+     */
     // Validaciones para $phones
     foreach ($phones as $phone) {
         if (!preg_match('/^\+?[0-9\s\-]+$/', $phone)) {
@@ -639,15 +639,97 @@ function add_company($company_data, $address_data, $phones, $social_media) {
         }
     }
 
+        global $wpdb;
+    $social_table = $wpdb->prefix . 'social_names'; // Tabla de redes sociales
+
     // Validaciones para $social_media
-    foreach ($social_media as $social) {
-        if (empty($social['name']) || !preg_match('/^[a-zA-Z\s]+$/', $social['name'])) {
-            $errors[] = "El nombre de la red social '{$social['name']}' es inválido.";
+    /* foreach ($social_media as $social) {
+        // Validar que el ID de la red social sea un número entero válido
+        $social_id = intval($social['name']);
+        if ($social_id <= 0) {
+            $errors[] = "El ID de la red social '{$social['name']}' es inválido.";
+        } else {
+            // Verificar que el ID exista en la base de datos
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $social_table WHERE id = %d",
+                $social_id
+            ));
+
+            if (!$exists) {
+                $errors[] = "El ID de la red social '{$social_id}' no existe en el sistema.";
+            }
         }
+
+        // Validar que la URL sea válida
         if (!filter_var($social['url'], FILTER_VALIDATE_URL)) {
             $errors[] = "El URL de la red social '{$social['url']}' es inválido.";
         }
+    } */
+
+
+
+
+    //validacion de schedules
+    
+     // Validar datos de horarios
+     if (empty($schedules)) {
+        $errors[] = "Debes seleccionar al menos un horario.";
     }
+
+    // Validar duplicados
+    if (count($schedules) !== count(array_unique($schedules))) {
+        $errors[] = "No puedes enviar el mismo horario más de una vez.";
+    }
+
+    // Validar existencia de los horarios en la base de datos
+    $placeholders = implode(',', array_fill(0, count($schedules), '%d'));
+    $horarios_validos = $wpdb->get_col($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}schedules WHERE id IN ($placeholders)",
+        $schedules
+    ));
+
+    if (count($horarios_validos) !== count($schedules)) {
+        $errors[] = "Algunos de los horarios seleccionados no existen.";
+    }
+
+
+    // **Validaciones de imágenes**
+    if (!empty($images)) {
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif']; // Tipos permitidos
+        $max_size = 2 * 1024 * 1024; // Tamaño máximo (2MB)
+
+        foreach ($images as $image) {
+            // Validar error al subir
+            if (!isset($image['tmp_name']) || $image['tmp_name'] === '') {
+                $errors[] = "Una de las imágenes no se subió correctamente.";
+                continue;
+            }
+
+            // Validar tamaño del archivo
+            if ($image['size'] > $max_size) {
+                $errors[] = "La imagen '{$image['name']}' excede el tamaño máximo permitido de 2MB.";
+                continue;
+            }
+
+            // Validar tipo de archivo
+            if (!in_array($image['type'], $allowed_types)) {
+                $errors[] = "La imagen '{$image['name']}' tiene un formato no permitido.";
+                continue;
+            }
+
+            // Validar si el archivo es realmente una imagen (verificar MIME)
+            if (!@getimagesize($image['tmp_name'])) {
+                $errors[] = "El archivo '{$image['name']}' no es una imagen válida.";
+                continue;
+            }
+        }
+    } else {
+        $errors[] = "Debes subir al menos una imagen.";
+    }
+
+
+
+
 
     // Si hay errores, devolverlos
     if (!empty($errors)) {
@@ -662,7 +744,7 @@ function add_company($company_data, $address_data, $phones, $social_media) {
             $wpdb->prefix . 'addresses',
             array(
                 'name'        => $address_data['name'],
-                'description' => $address_data['description'],
+                /* 'description' => $address_data['description'], */
                 'latitude'    => $address_data['latitude'],
                 'longitude'   => $address_data['longitude'],
             ),
@@ -710,22 +792,91 @@ function add_company($company_data, $address_data, $phones, $social_media) {
             }
         }
 
-        // Inserción de redes sociales
+        //redes sociales
         foreach ($social_media as $social) {
+            // Validar URL y existencia de social_name_id
+            if (!filter_var($social['url'], FILTER_VALIDATE_URL)) {
+                throw new Exception("URL inválida: {$social['url']}");
+            }
+        
+            $social_id = intval($social['name']);
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}social_names WHERE id = %d",
+                $social_id
+            ));
+            if (!$exists) {
+                throw new Exception("El ID de la red social '{$social_id}' no existe.");
+            }
+        
+            // Intentar la inserción
             $social_inserted = $wpdb->insert(
                 $wpdb->prefix . 'social_media',
-                array(
+                [
+                    'url' => $social['url'],
                     'company_id' => $company_id,
-                    'name'       => $social['name'],
-                    'url'        => $social['url'],
-                ),
-                array('%d', '%s', '%s')
+                    'social_name_id' => $social_id,
+                ],
+                ['%s', '%d', '%d']
             );
-
+        
             if (!$social_inserted) {
+                error_log("Error al insertar en wp_social_media: " . $wpdb->last_error);
                 throw new Exception('Error al insertar en la tabla wp_social_media');
             }
         }
+        
+
+        //horarios
+         // Insertar relación de horarios
+        foreach ($schedules as $schedule_id) {
+            $schedule_inserted = $wpdb->insert(
+                $wpdb->prefix . 'companies_schedules',
+                array(
+                    'company_id' => $company_id,
+                    'schedule_id' => $schedule_id,
+                ),
+                array('%d', '%d')
+            );
+            if (!$schedule_inserted) {
+                throw new Exception('Error al insertar los horarios.');
+            }
+        }
+
+        //multimedia
+        $carpeta_subida = __DIR__ . '/storage/uploads/';
+        $imagenes_guardadas = [];
+
+        foreach ($images as $image) {
+            $nombre_unico = uniqid('img_', true) . '.' . pathinfo($image['name'], PATHINFO_EXTENSION);
+            $ruta_completa = $carpeta_subida . $nombre_unico;
+
+            // Crear la carpeta si no existe
+            if (!file_exists($carpeta_subida)) {
+                mkdir($carpeta_subida, 0755, true);
+            }
+
+            // Mover el archivo a la carpeta de destino
+            if (move_uploaded_file($image['tmp_name'], $ruta_completa)) {
+                // Guardar la referencia en la base de datos
+                $wpdb->insert(
+                    "{$wpdb->prefix}images", // Tabla de imágenes
+                    [
+                        'company_id' => $company_id,
+                        'image_url' => 'storage/uploads/' . $nombre_unico, // Ruta relativa
+                        'created_at' => current_time('mysql')
+                    ]
+                );
+
+                if ($wpdb->insert_id) {
+                    $imagenes_guardadas[] = $nombre_unico;
+                } else {
+                    $errors[] = "Error al guardar la referencia de la imagen '{$image['name']}' en la base de datos.";
+                }
+            } else {
+                $errors[] = "Error al mover la imagen '{$image['name']}' al directorio de destino.";
+            }
+        }
+
 
         // Confirmar la transacción
         $wpdb->query('COMMIT');
@@ -741,6 +892,10 @@ function add_company($company_data, $address_data, $phones, $social_media) {
     wp_redirect('?crud_action=list_companies');
         exit;
 }
+
+
+
+
 
 function ia_Test(){
         
@@ -833,3 +988,28 @@ add_filter('template_include', 'handle_keywords_crud_routes');
 add_filter('template_include', 'handle_days_crud_routes');
 
 add_filter('template_include', 'handle_days_view');
+
+function obtener_horarios_con_dias() {
+    global $wpdb;
+
+    // Tablas
+    $tabla_horarios = $wpdb->prefix . 'schedules';
+    $tabla_dias = $wpdb->prefix . 'days';
+
+    // Consulta para obtener horarios con sus días asociados
+    $resultados = $wpdb->get_results("
+        SELECT 
+            $tabla_horarios.id AS horario_id,
+            $tabla_horarios.start_time,
+            $tabla_horarios.end_time,
+            $tabla_dias.name AS dia
+        FROM $tabla_horarios
+        JOIN $tabla_dias ON $tabla_horarios.day_id = $tabla_dias.id
+        ORDER BY $tabla_dias.id, $tabla_horarios.start_time
+    ", ARRAY_A);
+
+    return $resultados;
+}
+
+// Llama a la función y almacena los horarios con días
+$horarios = obtener_horarios_con_dias();
