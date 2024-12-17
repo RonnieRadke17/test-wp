@@ -1,10 +1,7 @@
 <?php
-
-
     // Obtiene las categorías principales (estados)
     $categorias = obtener_categorias_principales();
 
-    
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_company'])) {
         // Datos de la compañía
         $company_data = array(
@@ -75,7 +72,6 @@
             echo '<p style="color: green;">Empresa agregada exitosamente.</p>';
         }
     }
-    
     
 
 ?>

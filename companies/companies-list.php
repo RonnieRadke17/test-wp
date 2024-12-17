@@ -6,8 +6,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_adress'])) {
     exit;
 }
 
-// Obtener todos los días
-$adress_list = get_all_adress();
 ?>
 
 <h2>Lista de Días</h2>
