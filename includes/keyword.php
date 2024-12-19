@@ -1,3 +1,7 @@
+<?php
+
+//keywords
+
 function get_all_keywords() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'keywords';
@@ -18,6 +22,14 @@ function add_keywords($name) {
 }
 
 
+function get_keywords_by_id($id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'keywords';
+
+    return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id), ARRAY_A);
+}
+
+
 // Función para actualizar un día existente
 function update_keywords($id, $name) {
     global $wpdb;
@@ -30,37 +42,28 @@ function update_keywords($id, $name) {
     );
 }
 
-// Función para obtener un día por ID
-function get_keywords_by_id($id) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'keywords';
 
-    return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id), ARRAY_A);
-}
 
-function handle_keywords_crud_routes($template) {
-    if (isset($_GET['crud_action'])) {
-        switch ($_GET['crud_action']) {
-            case 'add_keywords':
-                return get_template_directory() . '/crud/keywords-add.php';
-            case 'edit_keywords': // Ruta para editar
-                return get_template_directory() . '/crud/keywords-edit.php';
-        }
-    }
-    return $template;
-}
-
-function handle_keywords_view($template) {//index
-    if (isset($_GET['crud_action']) && $_GET['crud_action'] === 'list_keywords') {
-        return get_template_directory() . '/crud/keywords-list.php';
-    }
-    return $template;
-}
-
-// Función para eliminar un día por ID
 function delete_keywords($id) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'keywords';
 
     return $wpdb->delete($table_name, ['id' => intval($id)]);
 }
+
+
+function handle_keywords_crud_routes($template) {
+    if (isset($_GET['crud_action'])) {
+        switch ($_GET['crud_action']) {
+            case 'list_keywords':
+                return get_template_directory() . '/keywords/keywords-list.php'; // Lista de horarios
+            case 'add_keywords':
+                return get_template_directory() . '/keywords/keywords-add.php'; // Agregar un horario
+            case 'edit_keywords': // Ruta para editar
+                return get_template_directory() . '/keywords/keywords-edit.php';
+        }
+    }
+    return $template;
+}
+
+add_filter('template_include', 'handle_keywords_crud_routes');
