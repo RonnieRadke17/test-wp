@@ -111,15 +111,6 @@ function handle_days_view($template) {//index
 }
 
 
-
-
-
-
-
-
-
-
-
 //crud de schendule
 // Función para agregar un nuevo horario
 // Función para agregar un nuevo horario con validaciones
@@ -278,19 +269,6 @@ add_filter('template_include', 'handle_schedules_crud_routes');
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 //keywords
 
 function get_all_keywords() {
@@ -443,7 +421,7 @@ function get_social_name_by_id($id) {
     return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id), ARRAY_A);
 }
 
-// Función para eliminar un nombre social por ID
+    // Función para eliminar un nombre social por ID
 function delete_social_name($id) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'social_names';
@@ -468,33 +446,6 @@ function handle_social_names_crud_routes($template) {
 }
 
 add_filter('template_include', 'handle_social_names_crud_routes');
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -526,16 +477,6 @@ function handle_companies_crud_routes($template) {
     }
     return $template;
 }
-
-
-
-
-
-
-
-
-
-
 
 // Función para obtener categorías principales (estados)
 function obtener_categorias_principales() {
@@ -579,31 +520,6 @@ function obtener_subcategorias_ajax() {
 }
 add_action('wp_ajax_obtener_subcategorias', 'obtener_subcategorias_ajax');
 add_action('wp_ajax_nopriv_obtener_subcategorias', 'obtener_subcategorias_ajax');
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

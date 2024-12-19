@@ -1,4 +1,6 @@
 <?php
+
+$categorias = obtener_categorias_principales();
 // Manejar la solicitud de eliminación
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_adress'])) {
     delete_adress($_POST['id']); // Llama a la función para eliminar el registro
@@ -7,26 +9,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_adress'])) {
 }
 
 ?>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
 <h2>Lista de Días</h2>
-<a href="?crud_action=add_adress">Agregar Nuevo Día</a>
-<table border="1" cellpadding="10">
-    <tr>
-        <th>ID</th>
-        <th>Nombre</th>
-        <th>Acciones</th>
-    </tr>
-    <?php foreach ($adress_list as $adress): ?>
-        <tr>
-            <td><?php echo $adress['id']; ?></td>
-            <td><?php echo $adress['name']; ?></td>
-            <td>
-                <a href="?crud_action=edit_adress&id=<?php echo $adress['id']; ?>">Editar</a>
-                <form method="POST" style="display:inline;">
-                    <input type="hidden" name="id" value="<?php echo $adress['id']; ?>">
-                    <button type="submit" name="delete_adress" onclick="return confirm('¿Estás seguro de eliminar este día?');">Eliminar</button>
-                </form>
-            </td>
-        </tr>
-    <?php endforeach; ?>
-</table>
+<?php if (!empty($categorias)) : ?>
+    <ul id="categoria_estado">
+        <?php foreach ($categorias as $categoria) : ?>
+            <li data-value="<?php echo esc_attr($categoria->term_id); ?>">
+                <?php echo esc_html($categoria->name); ?>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+<?php else : ?>
+    <p>No hay estados disponibles</p>
+<?php endif; ?>
+
+
+<?php include get_template_directory() . '/parts/footer.html'; ?>
+
+</body>
+</html>
+
+
+
+
+
+
+

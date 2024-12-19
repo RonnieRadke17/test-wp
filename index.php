@@ -6,14 +6,10 @@
     <title>Document</title>
 </head>
 <body>
+    index
     
-<a href="<?php echo get_template_directory_uri(); ?>/views/test/index.php">Ir a Test</a>
-<a href="<?php echo get_template_directory_uri(); ?>/days-view.php">Dias</a>
-<a href="<?php echo get_template_directory_uri(); ?>http://localhost/wordpress/?crud_action=list_days
-">Dias bien</a>
 
 
-
-
+<?php include get_template_directory() . '/parts/footer.html'; ?>
 </body>
 </html>
