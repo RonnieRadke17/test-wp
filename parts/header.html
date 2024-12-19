@@ -1,1 +1,129 @@
 <!-- wp:pattern {"slug":"twentytwentyfive/header"} /-->
+<style>
+    /* Estilos Generales */
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+    }
+
+    /* Header */
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
+        background-color: #0073aa;
+        color: white;
+        position: relative;
+        z-index: 1000;
+    }
+
+    .header .logo-container {
+        display: flex;
+        align-items: center;
+    }
+
+    .header img {
+        height: 40px;
+        margin-right: 10px;
+    }
+
+    .header h1 {
+        font-size: 20px;
+        margin: 0;
+    }
+
+    .menu-button {
+        background-color: transparent;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    .menu-button:focus {
+        outline: none;
+    }
+
+    /* Menú Lateral (lado derecho) */
+    .menu-lateral {
+        position: fixed;
+        top: 0;
+        right: -250px; /* Cambiado al lado derecho */
+        width: 250px;
+        height: 100%;
+        background-color: #333;
+        color: white;
+        transition: right 0.3s ease; /* Transición para el deslizamiento */
+        padding: 20px;
+        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+    }
+
+    .menu-lateral.open {
+        right: 0; /* Menú abierto */
+    }
+
+    .menu-lateral h2 {
+        margin-top: 0;
+    }
+
+    .menu-lateral a {
+        display: block;
+        color: white;
+        text-decoration: none;
+        font-size: 18px;
+        margin-bottom: 15px;
+        padding: 5px 0;
+    }
+
+    .menu-lateral a:hover {
+        color: #0073aa;
+    }
+
+    .menu-lateral .close-button {
+        background-color: transparent;
+        border: none;
+        color: white;
+        font-size: 24px;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        cursor: pointer;
+    }
+
+    .menu-lateral .close-button:focus {
+        outline: none;
+    }
+</style>
+
+<header class="header">
+    <div class="logo-container">
+        <img src="https://via.placeholder.com/40" alt="Logo">
+        <h1>Mi Empresa</h1>
+        <a href=""></a>
+    </div>
+    <button class="menu-button" onclick="abrirMenu()">☰</button>
+</header>
+
+<!-- Menú Lateral -->
+<div class="menu-lateral" id="menuLateral">
+    <button class="close-button" onclick="cerrarMenu()">×</button>
+    <h2>Menú</h2>
+    <a href="#">Inicio</a>
+    <a href="#">Acerca de</a>
+    <a href="#">Servicios</a>
+    <a href="#">Contacto</a>
+</div>
+
+<!-- Scripts -->
+<script>
+    // Función para abrir el menú
+    function abrirMenu() {
+        document.getElementById('menuLateral').classList.add('open');
+    }
+
+    // Función para cerrar el menú
+    function cerrarMenu() {
+        document.getElementById('menuLateral').classList.remove('open');
+    }
+</script>

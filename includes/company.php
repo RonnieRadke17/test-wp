@@ -306,6 +306,7 @@ function handle_companies_crud_routes($template) {
         'list_companies' => '/resources/pages/companies/companies-list.php',
         'add_companies' => '/resources/pages/companies/companies-add.php',
         'edit_companies' => '/resources/pages/companies/companies-edit.php',
+        'show_companies' => '/resources/pages/companies/companies-show.php',
     ];
 
     // Validar si el parámetro `crud_action` está presente
