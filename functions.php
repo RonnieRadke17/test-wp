@@ -8,7 +8,7 @@ require_once get_template_directory() . '/includes/day.php';
 
 require_once get_template_directory() . '/includes/schedule.php';
 
-require_once get_template_directory() . '/includes/keyword.php';//no sirve
+require_once get_template_directory() . '/includes/keyword.php';//falta revisar
 
 require_once get_template_directory() . '/includes/social_name.php';
 

@@ -1,7 +1,6 @@
 <?php
     // Obtiene las categorías principales (estados)
     $categorias = obtener_categorias_principales();
-
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_company'])) {
         // Datos de la compañía
         $company_data = array(
@@ -72,8 +71,6 @@
             echo '<p style="color: green;">Empresa agregada exitosamente.</p>';
         }
     }
-    
-
 ?>
 
 <!DOCTYPE html>
@@ -83,21 +80,187 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
+<style>
+    /* General */
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    h3 {
+        font-size: 22px;
+        margin-bottom: 20px;
+        color: #005f87;
+        text-align: center;
+    }
+
+    label {
+        font-weight: bold;
+        margin-bottom: 8px;
+        display: block;
+        color: #444;
+    }
+
+    input, select, textarea, button {
+        font-size: 15px;
+        padding: 12px;
+        width: 100%;
+        max-width: 400px;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    input:focus, select:focus, textarea:focus {
+        border-color: #0073aa;
+        box-shadow: 0 2px 6px rgba(0, 115, 170, 0.2);
+        outline: none;
+    }
+
+    button {
+        background-color: #0073aa;
+        color: white;
+        cursor: pointer;
+        border: none;
+        font-weight: 600;
+        font-size: 15px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    button:hover {
+        background-color: #005f87;
+        transform: translateY(-2px);
+    }
+
+    button:focus {
+        outline: none;
+    }
+
+    button:active {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+    /* Formulario centrado */
+    form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 30px;
+        background-color: white;
+        border-radius: 12px;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        max-width: 700px;
+        width: 100%;
+    }
+
+    .form-step {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .form-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+
+    /* Mapa */
+    #map {
+        height: 300px;
+        width: 100%;
+        max-width: 500px;
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Inputs del mapa */
+    #searchBox {
+        width: calc(100% - 110px);
+        max-width: 400px;
+        display: inline-block;
+    }
+
+    #searchBox + button {
+        display: inline-block;
+        width: 100px;
+        padding: 12px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* Botones de navegación */
+    .prev-step, .next-step {
+        width: auto;
+        font-size: 15px;
+        font-weight: bold;
+        padding: 10px 20px;
+        margin: 0 10px;
+    }
+
+    .prev-step {
+        background-color: #ccc;
+    }
+
+    .prev-step:hover {
+        background-color: #aaa;
+    }
+
+    .button-group {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        h3 {
+            font-size: 18px;
+        }
+
+        input, select, textarea, button {
+            font-size: 14px;
+        }
+
+        #searchBox {
+            width: calc(100% - 100px);
+        }
+
+        #searchBox + button {
+            width: 90px;
+        }
+
         #map {
-            height: 500px;
-            margin-bottom: 20px;
+            height: 250px;
+            max-width: 100%;
         }
-        .form-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-width: 400px;
+
+        form {
+            padding: 20px;
         }
-    </style>
+    }
+</style>
+
+
     <title>Registrar Compañía</title>
 </head>
 <body>
+
 
 <form id="company-form" method="POST" enctype="multipart/form-data">
     <!-- Paso 1: Información de la Compañía -->
@@ -450,140 +613,6 @@
 
 </script>
 
-
-
-<!-- <script>
-    // Manejo de pasos dinámico
-    document.addEventListener("DOMContentLoaded", function () {
-        document.querySelectorAll(".next-step").forEach(function (button) {
-            button.addEventListener("click", function () {
-                const currentStep = this.closest(".form-step");
-                const nextStep = currentStep.nextElementSibling;
-
-                if (nextStep) {
-                    currentStep.style.display = "none";
-                    nextStep.style.display = "block";
-                }
-            });
-        });
-
-        document.querySelectorAll(".prev-step").forEach(function (button) {
-            button.addEventListener("click", function () {
-                const currentStep = this.closest(".form-step");
-                const prevStep = currentStep.previousElementSibling;
-
-                if (prevStep) {
-                    currentStep.style.display = "none";
-                    prevStep.style.display = "block";
-                }
-            });
-        });
-
-        // Agregar más números de teléfono
-        document.getElementById('add-phone').addEventListener('click', function () {
-            const container = document.getElementById('phone-container');
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.name = 'phones[]';
-            input.placeholder = 'Número de teléfono';
-            container.appendChild(input);
-        });
-
-        // Agregar más redes sociales
-        document.getElementById('add-social').addEventListener('click', function () {
-            const container = document.getElementById('social-container');
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.name = 'social_media[]';
-            input.placeholder = 'Red social (URL)';
-            container.appendChild(input);
-        });
-    });
-
-    // Cargar subcategorías dinámicamente
-    document.getElementById('categoria_estado').addEventListener('change', function () {
-        const estadoId = this.value;
-        const subcategoriaSelect = document.getElementById('subcategoria');
-
-        subcategoriaSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
-
-        if (!estadoId) return;
-
-        fetch('<?php echo admin_url("admin-ajax.php"); ?>', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                action: 'obtener_subcategorias',
-                parent_id: estadoId,
-            }),
-        })
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.length > 0) {
-                    data.forEach((subcategoria) => {
-                        const option = document.createElement('option');
-                        option.value = subcategoria.id;
-                        option.textContent = subcategoria.name;
-                        subcategoriaSelect.appendChild(option);
-                    });
-                } else {
-                    subcategoriaSelect.innerHTML =
-                        '<option value="">No hay municipios disponibles</option>';
-                }
-            })
-            .catch((error) => {
-                console.error('Error al cargar los municipios:', error);
-            });
-    });
-
-    // Inicializamos el mapa
-    var map = L.map('map').setView([19.432608, -99.133209], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    var marker;
-
-    function searchPlace() {
-        const searchBox = document.getElementById('searchBox').value;
-        if (!searchBox) {
-            alert("Por favor, ingresa un lugar para buscar.");
-            return;
-        }
-
-        fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchBox)}&format=json&limit=1`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.length === 0) {
-                    alert("No se encontró el lugar. Intenta con otro término.");
-                    return;
-                }
-
-                const place = data[0];
-                const name = place.display_name;
-                const lat = place.lat;
-                const lon = place.lon;
-
-                if (marker) map.removeLayer(marker);
-                marker = L.marker([lat, lon]).addTo(map).bindPopup(name).openPopup();
-                map.setView([lat, lon], 14);
-
-                document.getElementById('placeName').value = name;
-                document.getElementById('latitude').value = lat;
-                document.getElementById('longitude').value = lon;
-
-                document.getElementById('displayName').innerText = name;
-                document.getElementById('displayLat').innerText = lat;
-                document.getElementById('displayLng').innerText = lon;
-            })
-            .catch(error => {
-                console.error("Error al buscar el lugar:", error);
-                alert("Ocurrió un error al buscar el lugar. Intenta nuevamente.");
-            });
-    }
-</script> -->
 
 </body>
 </html>

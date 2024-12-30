@@ -90,77 +90,10 @@ if (!$company) {
     <title><?php echo esc_html($company->company_name); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .left-column {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 8px;
-        }
-
-        .right-column {
-            padding: 20px;
-            text-align: left;
-        }
-
-        .right-column h1 {
-            font-size: 28px;
-            color: #000;
-        }
-
-        .info-section h2 {
-            margin-top: 20px;
-            color: #000;
-        }
-
-        ul.info-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        ul.info-list li {
-            margin-bottom: 10px;
-        }
-
-        ul.info-list a {
-            color: #0073aa;
-            text-decoration: none;
-        }
-
-        ul.info-list a:hover {
-            text-decoration: underline;
-        }
-
-        .carousel-inner img {
-            max-height: 350px;
-            object-fit: cover;
-        }
-
-        .info-pair {
-            display: flex;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
-        .info-pair > div {
-            flex: 1;
-        }
-    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="<?php echo get_template_directory_uri(); ?>/assets/css/companies-show.css">
+    
 </head>
 <body>
 
@@ -256,12 +189,37 @@ if (!$company) {
                 </div>
             </div>
 
-            <!-- Columna Derecha -->
-            <div class="col-md-5 right-column">
-                <h1><?php echo esc_html($company->company_name); ?></h1>
-                <p><strong>Descripción:</strong> <?php echo esc_html($company->company_description); ?></p>
-                <p><strong>Subcategoría:</strong> <?php echo esc_html($company->subcategory_name ?? 'Sin subcategoría'); ?></p>
-            </div>
+             <!-- Columna Derecha -->
+        <div class="right-column">
+            <h1><?php echo esc_html($company->company_name); ?></h1>
+            <p><strong>Descripción:</strong> <?php echo esc_html($company->company_description); ?></p>
+            <p><strong>Subcategoría:</strong> <?php echo esc_html($company->subcategory_name ?? 'Sin subcategoría'); ?></p>
+
+            <!-- Mapa -->
+            <h2>Ubicación en el Mapa</h2>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script>
+        // Coordenadas de la dirección desde PHP
+        const latitude = <?php echo !empty($address->latitude) ? esc_js($address->latitude) : '19.432608'; ?>; // Coordenada de latitud
+        const longitude = <?php echo !empty($address->longitude) ? esc_js($address->longitude) : '-99.133209'; ?>; // Coordenada de longitud
+        const direccion = "<?php echo !empty($address->name) ? esc_js($address->name) : 'Sin dirección'; ?>"; // Dirección
+
+        // Inicializar el mapa en la columna derecha
+        const map = L.map('map').setView([latitude, longitude], 15);
+
+        // Cargar el mapa base de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Agregar un marcador en las coordenadas
+        L.marker([latitude, longitude]).addTo(map)
+            .bindPopup(`<b>${direccion}</b><br>Lat: ${latitude}, Lng: ${longitude}`)
+            .openPopup();
+    </script>
         </div>
     </div>
 </body>
